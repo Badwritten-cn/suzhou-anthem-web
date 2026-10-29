@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宿州学院校歌 · 歌词对齐器</title>
+<style>
+  :root { --blue:#0b2545; --blue2:#13315c; --gold:#d4af37; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+         background:linear-gradient(160deg,#0b2545,#13315c); color:#eaeef5; min-height:100vh; }
+  .wrap { max-width:880px; margin:0 auto; padding:24px 18px 60px; }
+  h1 { color:var(--gold); font-size:20px; margin:0 0 4px; }
+  .sub { color:#9fb3c8; font-size:13px; margin-bottom:18px; }
+  .card { background:rgba(255,255,255,.06); border:1px solid rgba(212,175,55,.25);
+          border-radius:12px; padding:16px; margin-bottom:16px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  button { background:var(--gold); color:#0b2545; border:none; border-radius:8px;
+           padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--gold); border:1px solid var(--gold); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  label.filelabel { padding:9px 16px; border:1px solid var(--gold); border-radius:8px;
+                    cursor:pointer; color:var(--gold); font-size:14px; font-weight:600; }
+  input[type=file] { display:none; }
+  audio { width:100%; margin-top:10px; }
+  #status { font-size:13px; color:#9fb3c8; min-height:18px; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; }
+  th,td { text-align:left; padding:7px 8px; border-bottom:1px solid rgba(255,255,255,.08); font-size:14px; }
+  th { color:var(--gold); font-weight:600; font-size:12px; }
+  tr.cur { background:rgba(212,175,55,.18); }
+  tr.done td:first-child { color:var(--gold); }
+  .time { font-variant-numeric:tabular-nums; color:#7fd1ff; font-family:ui-monospace,monospace; }
+  .empty { color:#6b7d91; }
+  .tip { font-size:12px; color:#8aa0b6; line-height:1.6; }
+  kbd { background:#233a5e; border-radius:4px; padding:1px 6px; font-size:12px; color:#fff; }
+  .big { font-size:22px; font-weight:700; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>宿州学院校歌 · 歌词对齐器</h1>
+  <div class="sub">播放后边听边按空格标记每句开始时间 → 导出 .lrc → 交给 AI 重出 APK</div>
+
+  <div class="card">
+    <div class="row">
+      <label class="filelabel">选择本地音频（可选）
+        <input id="file" type="file" accept="audio/*">
+      </label>
+      <span id="fname" class="tip">默认加载同目录 xiaoge.mp3</span>
+    </div>
+    <audio id="audio" controls preload="auto"></audio>
+    <div class="row" style="margin-top:10px;justify-content:space-between;">
+      <div>当前播放：<span id="cur" class="big">00:00.00</span></div>
+      <div class="row">
+        <button id="mark">标记当前句 ▶ 下一句 (空格)</button>
+        <button id="prev" class="ghost">上一句</button>
+        <button id="reset" class="ghost">清空重来</button>
+      </div>
+    </div>
+    <div id="status">提示：页面会先尝试加载同目录的 xiaoge.mp3；若失败（如本地打开）可手动选择音频文件。</div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:flex-start;">
+      <div>
+        <strong style="color:var(--gold)">歌词行（可编辑：双击单元格改词，右键行删行）</strong>
+        <div class="tip">已标记的行时间显示为金色；未标记显示灰色「—」。</div>
+      </div>
+      <div class="row">
+        <button id="export" class="ghost">导出 .lrc</button>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th style="width:70px">时间</th><th>歌词</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="card tip">
+    <strong>用法</strong><br>
+    1. 页面自动加载同目录 <code>xiaoge.mp3</code>（微信/网页打开即可直接听）。<br>
+    2. 点播放，听到每句歌词开头按 <kbd>空格</kbd> → 时间记到当前行并跳下一行；继续听下一句再按空格……<br>
+    3. 标错？点「上一句」回退，或双击时间格手动改。<br>
+    4. 全部标完点「导出 .lrc」下载，把文件发给我即可重出精确版 APK。<br>
+    <em>本工具纯本地运行，音频不上传任何服务器。</em>
+  </div>
+</div>
+
+<script>
+const DEFAULT_LYRICS = [
+  "大泽茫茫，汴水泱泱，黄淮南郡，古韵悠长。",
+  "挥黄钺，唱楚声，弹魏晋，战淮海，荡气回肠，荡气回肠。",
+  "传承文明再谱华章，宿州学院桃李芬芳，桃李芬芳。",
+  "传承文明再谱华章，宿州学院桃李芬芳。",
+  "以人为本，培育栋梁，二冬精神，举国颂扬，",
+  "传薪火，种理想，兴华厦，铸辉煌，重任担当，重任担当。",
+  "友善博学，务实奋进，宿州学院扬帆远航，扬帆远航。",
+  "友善博学，务实奋进，宿州学院扬帆远航。"
+];
+
+let lines = DEFAULT_LYRICS.map(t => ({ text:t, time:null }));
+let cur = 0;
+const audio = document.getElementById('audio');
+const tbody = document.getElementById('tbody');
+const curEl = document.getElementById('cur');
+const statusEl = document.getElementById('status');
+
+function fmt(sec){
+  if(sec==null) return "—";
+  const m=Math.floor(sec/60), s=Math.floor(sec%60), cs=Math.floor((sec*100)%100);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+}
+function render(){
+  tbody.innerHTML='';
+  lines.forEach((l,i)=>{
+    const tr=document.createElement('tr');
+    if(i===cur) tr.className='cur';
+    if(l.time!=null) tr.className+=' done';
+    const tdT=document.createElement('td');
+    tdT.className='time'+(l.time==null?' empty':'');
+    tdT.textContent=fmt(l.time);
+    tdT.ondblclick=()=>{ const v=prompt('输入时间(分:秒.百分秒)，如 00:28.50',fmt(l.time)==='—'?'':fmt(l.time));
+      if(v!==null){ const m=v.match(/(\d+):(\d+)(?:[.:](\d+))?/); if(m){ l.time=(+m[1])*60+(+m[2])+(+(m[3]||0))/100; render(); } } };
+    const tdX=document.createElement('td');
+    tdX.textContent=l.text;
+    tdX.ondblclick=()=>{ const v=prompt('修改歌词',l.text); if(v!==null){ l.text=v; render(); } };
+    tdX.oncontextmenu=(e)=>{ e.preventDefault(); if(confirm('删除这一行？')){ lines.splice(i,1); if(cur>=lines.length)cur=lines.length-1; render(); } };
+    tr.appendChild(tdT); tr.appendChild(tdX);
+    tbody.appendChild(tr);
+  });
+}
+function tick(){ curEl.textContent=fmt(audio.currentTime); }
+audio.ontimeupdate=tick;
+
+// 默认尝试加载同目录音频（微信/网页可直接用）；失败则提示手动选择
+audio.addEventListener('error', () => {
+  statusEl.textContent='同目录 xiaoge.mp3 加载失败，请点击「选择本地音频」手动载入。';
+}, { once:true });
+audio.src = './xiaoge.mp3';
+
+document.getElementById('file').onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  audio.src=URL.createObjectURL(f);
+  document.getElementById('fname').textContent=f.name+' ('+fmt(f.duration||0)+')';
+  statusEl.textContent='已载入本地音频：'+f.name;
+};
+document.getElementById('mark').onclick=doMark;
+function doMark(){
+  if(cur>=lines.length){ statusEl.textContent='已全部标记完成，可导出 .lrc。'; return; }
+  lines[cur].time = audio.currentTime;
+  statusEl.textContent=`已标记第 ${cur+1} 句 @ ${fmt(audio.currentTime)}`;
+  cur = (cur+1<lines.length)? cur+1 : lines.length;
+  render();
+  const trs=tbody.querySelectorAll('tr'); if(trs[cur]) trs[cur].scrollIntoView({block:'center',behavior:'smooth'});
+}
+document.getElementById('prev').onclick=()=>{ if(cur>0)cur--; render(); };
+document.getElementById('reset').onclick=()=>{ if(confirm('清空所有已标时间？')){ lines.forEach(l=>l.time=null); cur=0; render(); } };
+document.getElementById('export').onclick=()=>{
+  if(lines.some(l=>l.time==null)){ if(!confirm('还有未标记的行，仍要导出？（未标记行时间记 00:00.00）'))return; }
+  let out='';
+  lines.forEach(l=>{ out+=`[${fmt(l.time==null?0:l.time)}]${l.text}\n`; });
+  const blob=new Blob([out],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='lyric.lrc'; a.click();
+  statusEl.textContent='已导出 lyric.lrc，发给我即可重出精确版 APK。';
+};
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space' && document.activeElement.tagName!=='INPUT'
+     && document.activeElement.tagName!=='TEXTAREA' && !e.target.matches('button')){
+    e.preventDefault(); doMark();
+  }
+});
+render();
+</script>
+</body>
+</html>
